@@ -1,10 +1,7 @@
-puts "do it"
 files = []
 Dir["*.go"].each do |src|
    files << src
-   puts src
 end
-puts "done"
 
 files.each do |go_file|
    linker_file = go_file.sub(File.extname(go_file),".8")

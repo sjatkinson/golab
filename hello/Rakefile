@@ -8,11 +8,11 @@ files.each do |go_file|
    exe_file =File.basename(go_file,".go")
 
    file linker_file => go_file do
-      sh "8g #{go_file}"
+      system "8g #{go_file}"
    end
 
    file exe_file => linker_file do
-      sh "8l -o #{exe_file} #{linker_file}"
+      system "8l -o #{exe_file} #{linker_file}"
    end
 
    task :clean do

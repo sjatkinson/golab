@@ -1,0 +1,26 @@
+files = []
+Dir["*.go"].each do |src|
+   files << src
+end
+
+files.each do |go_file|
+   linker_file = go_file.sub(File.extname(go_file),".8")
+   exe_file =File.basename(go_file,".go")
+
+   file linker_file => go_file do
+      system "8g #{go_file}"
+   end
+
+   file exe_file => linker_file do
+      system "8l -o #{exe_file} #{linker_file}"
+   end
+
+   task :clean do
+     rm exe_file
+     rm linker_file
+   end
+
+   task :default => exe_file
+end
+
+

@@ -1,16 +1,15 @@
+// echo writes all command line arguments to stdout
 package main
 
 import (
-	"flag"
 	"fmt"
+	"os"
 )
 
 func main() {
-	flag.Parse()
-	count := flag.NArg()
-	last := count - 1
-	for i := 0; i < last; i++ {
-		fmt.Printf("%s ", flag.Arg(i))
+	last := len(os.Args) - 1
+	for _, arg := range os.Args[1:last] {
+		fmt.Printf("%s ", arg)
 	}
-	fmt.Printf("%s\n", flag.Arg(last))
+	fmt.Printf("%s\n", os.Args[last])
 }

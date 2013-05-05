@@ -3,9 +3,14 @@ Golab
 
 A playground for experimenting with the Go Programming language.
 
-The project is broken up into four main directories: Packages, Builtin, Utils, and Experiments.
+The project is broken down into several workspaces: apps, examples, and servers.  
 
-* packages - sample programs which use a particular package.
-* builtin - sample programs which use builtin features of Go (i.e. slices, arrays, etc)
-* utils - simple utilities. These are not necessarily useful or needed utils, but serve the purpose of learning to program in Go.
-* experimental - attempts to learn more about a features or technique in Go.
+Apps - contains simple command line apps which explore multiple packages and techniques. However, the purpose is to use go to implement simple real works apps.
+
+Examples - contains example programs which explore packages and programming techinques of Go.
+
+Servers - contains simple example server programs both http, pure socket, and rpc based servers.
+
+To build set GOPATH to contain the root of each workspace. For example, if golab is installed in $HOME/golab, then set GOPATH as follows:
+
+$ export GOPATH=$HOME/golab/exmples:$HOME/golab/apps:$HOME/golab/servers

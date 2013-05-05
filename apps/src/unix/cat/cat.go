@@ -33,7 +33,7 @@ func main() {
 		for _, arg := range os.Args[1:] {
 			file, err := os.Open(arg)
 			if err != nil {
-                                 logger := log.New(os.Stderr, "", 0)
+				logger := log.New(os.Stderr, "", 0)
 				logger.Println(err)
 			}
 			catFile(file)

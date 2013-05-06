@@ -1,0 +1,7 @@
+<makefile>
+
+   <project type="lib">foo.lib</project>
+   <?bsl if ?>
+   <?bsl endif ?>
+   <content>foo.cpp</content>
+</makefile>

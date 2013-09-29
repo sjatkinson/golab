@@ -50,54 +50,30 @@ func classify(r rune) typeChar {
 	return charWord
 }
 
-// countFn defines a function which returns the counts for a given rune in the input stream.
-type countFn func(r rune) counts
 
-// inWord is a countFn which returns the count of elements for a given rune when we are
-// currently in a word counting.
-func inWord(r rune) (counts counts) {
-	counts.chars = 1
-	switch classify(r) {
-	case charWord: // still in a word, keep counting
-	case charNewline:
-		counts.lines = 1
-		fallthrough
-	case charSpace: // done with a word, count it
-		counts.words = 1
-	}
-	return
-}
-
-func inSpace(r rune) (counts counts) {
-	counts.chars = 1
-	switch classify(r) {
-	case charWord, charSpace: // nothing else to count
-	case charNewline:
-		counts.lines = 1
-	}
-	return
-}
-
+// scan counts all the chars, words, and lines in the given file
 func scan(reader *bufio.Reader) counts {
-	var s counts
-	countFn := inSpace
+        var prev typeChar = charSpace
+        var chars, words, lines int
 	for {
 		r, _, err := reader.ReadRune()
-
 		if err != nil {
-			break
+			break // TODO: what errors might we get here, and how to handle?
 		}
-		s.Add(countFn(r))
-		// set the countFn function for each new char. We are either in a word
-		// counting, or in whitespace counting. This will enable us to determine
-		// when we are transistioning from a word to whitespace and visa-versa.
-		if unicode.IsSpace(r) {
-			countFn = inSpace
-		} else {
-			countFn = inWord
-		}
+                chars++
+                c := classify(r)
+                switch c {
+                  case charWord:
+                     if prev != c {
+                        words++
+                     }
+                     case charSpace: // nothing
+                     case charNewline:
+                        lines++;
+               }
+               prev = c
 	}
-	return s
+	return counts {chars, words, lines, 1}
 }
 
 func main() {
@@ -115,6 +91,7 @@ func main() {
 				anyErrs = true
 				continue
 			}
+                        defer file.Close()
 			rdr := bufio.NewReader(file)
 			s := scan(rdr)
 			s.Report(arg)

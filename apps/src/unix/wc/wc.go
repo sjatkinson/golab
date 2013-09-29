@@ -1,81 +1,130 @@
-/*
-   wc counts the chars, words, and lines in a file.
-*/
+// wc counts the chars, words, and lines in a file.
 package main
 
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
+	"unicode"
 )
 
-type Stats struct {
+// counts keeps track of the chars, words, and lines in a files or set of files
+type counts struct {
 	chars int
 	words int
 	lines int
+	Added int // the number of structs added to ours
 }
 
-func (s *Stats) Accum(other *Stats) {
-   s.chars += other.chars
-   s.words += other.words
-   s.lines += other.lines
+// Add takes in another counts struct and adds them to our current counts
+func (s *counts) Add(other counts) {
+	s.chars += other.chars
+	s.words += other.words
+	s.lines += other.lines
+	s.Added++
 }
 
-func (s *Stats)Report(filename string) {
-	fmt.Printf("%8v%8v%8v %v\n", s.lines, s.words, s.chars, filename)
+// Report outputs the current counts to stdout
+func (s *counts) Report(title string) {
+	fmt.Printf("%8v%8v%8v %v\n", s.lines, s.words, s.chars, title)
 }
 
-func scanFile(reader *bufio.Reader) (Stats) {
-	var chars, words, lines int
-	var inWord bool
+// typeChar represents the type of chars contained in the elements we count
+type typeChar int
+
+// the list of possible typeChar values
+const (
+	charNewline typeChar = iota // a newline char
+	charSpace                   // a whitespace char other than newline
+	charWord                    // any other char is considered part of a word
+)
+
+// clasify determine what type of typeChar a given rune is
+func classify(r rune) typeChar {
+	if r == '\n' {
+		return charNewline
+	}
+	if unicode.IsSpace(r) {
+		return charSpace
+	}
+	return charWord
+}
+
+// countFn defines a function which returns the counts for a given rune in the input stream.
+type countFn func(r rune) counts
+
+// inWord is a countFn which returns the count of elements for a given rune when we are
+// currently in a word counting.
+func inWord(r rune) (counts counts) {
+	counts.chars = 1
+	switch classify(r) {
+	case charWord: // still in a word, keep counting
+	case charNewline:
+		counts.lines = 1
+		fallthrough
+	case charSpace: // done with a word, count it
+		counts.words = 1
+	}
+	return
+}
+
+func inSpace(r rune) (counts counts) {
+	counts.chars = 1
+	switch classify(r) {
+	case charWord, charSpace: // nothing else to count
+	case charNewline:
+		counts.lines = 1
+	}
+	return
+}
+
+func scan(reader *bufio.Reader) counts {
+	var s counts
+	countFn := inSpace
 	for {
-		c, err := reader.ReadByte()
+		r, _, err := reader.ReadRune()
+
 		if err != nil {
 			break
 		}
-		chars++
-		switch c {
-		case ' ', '\t':
-			if inWord {
-				inWord = false
-			}
-		case '\n':
-			lines++
-			inWord = false
-		default:
-			if !inWord {
-				words++
-			}
-			inWord = true
+		s.Add(countFn(r))
+		// set the countFn function for each new char. We are either in a word
+		// counting, or in whitespace counting. This will enable us to determine
+		// when we are transistioning from a word to whitespace and visa-versa.
+		if unicode.IsSpace(r) {
+			countFn = inSpace
+		} else {
+			countFn = inWord
 		}
 	}
-	return Stats{chars, words, lines}
+	return s
 }
 
 func main() {
+	var anyErrs bool
 	if len(os.Args) == 1 {
 		rdr := bufio.NewReader(os.Stdin)
-		s := scanFile(rdr)
+		s := scan(rdr)
 		s.Report("")
 	} else {
-                var totals Stats
-                var files int
+		var totals counts
 		for _, arg := range os.Args[1:] {
-                        files++
 			file, err := os.Open(arg)
 			if err != nil {
-				logger := log.New(os.Stderr, "", 0)
-				logger.Println(err)
+				fmt.Fprintln(os.Stderr, err)
+				anyErrs = true
+				continue
 			}
 			rdr := bufio.NewReader(file)
-			s := scanFile(rdr)
+			s := scan(rdr)
 			s.Report(arg)
-                        totals.Accum(&s)
+			totals.Add(s)
 		}
-                if files > 1 {
-                   totals.Report("total")
-                }
+		if totals.Added > 1 {
+			totals.Report("total")
+		}
+		if anyErrs {
+			os.Exit(1)
+		}
 	}
-
 }

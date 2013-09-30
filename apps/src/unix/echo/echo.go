@@ -3,13 +3,11 @@ package main
 
 import (
 	"fmt"
-	"os"
+        "os"
+	"strings"
 )
 
+
 func main() {
-	last := len(os.Args) - 1
-	for _, arg := range os.Args[1:last] {
-		fmt.Printf("%s ", arg)
-	}
-	fmt.Printf("%s\n", os.Args[last])
+      fmt.Printf("%s\n", strings.Join(os.Args[1:], " "))
 }

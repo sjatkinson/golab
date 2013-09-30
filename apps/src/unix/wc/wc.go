@@ -1,81 +1,142 @@
-/*
-   wc counts the chars, words, and lines in a file.
-*/
+// wc counts the chars, words, and lines in a file.
 package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
-	"log"
 	"os"
+	"unicode"
 )
 
-type Stats struct {
+var listChars, listWords, listLines bool
+
+type options struct {
+	ShowChars bool
+	ShowWords bool
+	ShowLines bool
+}
+
+func (o *options) init() {
+	var chars, words, lines bool
+	flag.BoolVar(&chars, "c", false, "list the chars")
+	flag.BoolVar(&words, "w", false, "list the words")
+	flag.BoolVar(&lines, "l", false, "list the lines")
+
+	o.ShowChars, o.ShowWords, o.ShowLines = true, true, true
+
+	flag.Parse()
+	if flag.NFlag() > 0 {
+		o.ShowChars = chars
+		o.ShowWords = words
+		o.ShowLines = lines
+	}
+}
+
+// counts keeps track of the chars, words, and lines in a files or set of files
+type counts struct {
 	chars int
 	words int
 	lines int
+	Added int // the number of structs added to ours
 }
 
-func (s *Stats) Accum(other *Stats) {
-   s.chars += other.chars
-   s.words += other.words
-   s.lines += other.lines
+// Add takes in another counts struct and adds them to our current counts
+func (s *counts) Add(other counts) {
+	s.chars += other.chars
+	s.words += other.words
+	s.lines += other.lines
+	s.Added++
 }
 
-func (s *Stats)Report(filename string) {
-	fmt.Printf("%8v%8v%8v %v\n", s.lines, s.words, s.chars, filename)
+// Report outputs the current counts to stdout
+func (s *counts) Report(title string, opts *options) {
+	if opts.ShowLines {
+		fmt.Printf("%8v", s.lines)
+	}
+	if opts.ShowWords {
+		fmt.Printf("%8v", s.words)
+	}
+	if opts.ShowChars {
+		fmt.Printf("%8v", s.chars)
+	}
+	fmt.Printf(" %8v\n", title)
 }
 
-func scanFile(reader *bufio.Reader) (Stats) {
+// typeChar represents the type of chars contained in the elements we count
+type typeChar int
+
+// the list of possible typeChar values
+const (
+	charNewline typeChar = iota // a newline char
+	charSpace                   // a whitespace char other than newline
+	charWord                    // any other char is considered part of a word
+)
+
+// clasify determine what type of typeChar a given rune is
+func classify(r rune) typeChar {
+	if r == '\n' {
+		return charNewline
+	}
+	if unicode.IsSpace(r) {
+		return charSpace
+	}
+	return charWord
+}
+
+// scan counts all the chars, words, and lines in the given file
+func scan(reader *bufio.Reader) counts {
+	var prev typeChar = charSpace
 	var chars, words, lines int
-	var inWord bool
 	for {
-		c, err := reader.ReadByte()
+		r, _, err := reader.ReadRune()
 		if err != nil {
-			break
+			break // TODO: what errors might we get here, and how to handle?
 		}
 		chars++
+		c := classify(r)
 		switch c {
-		case ' ', '\t':
-			if inWord {
-				inWord = false
-			}
-		case '\n':
-			lines++
-			inWord = false
-		default:
-			if !inWord {
+		case charWord:
+			if prev != c {
 				words++
 			}
-			inWord = true
+		case charSpace: // nothing
+		case charNewline:
+			lines++
 		}
+		prev = c
 	}
-	return Stats{chars, words, lines}
+	return counts{chars, words, lines, 1}
 }
 
 func main() {
-	if len(os.Args) == 1 {
+	var anyErrs bool
+	var opts options
+	opts.init()
+	if flag.NArg() == 0 {
 		rdr := bufio.NewReader(os.Stdin)
-		s := scanFile(rdr)
-		s.Report("")
+		s := scan(rdr)
+		s.Report("", &opts)
 	} else {
-                var totals Stats
-                var files int
-		for _, arg := range os.Args[1:] {
-                        files++
+		var totals counts
+		for _, arg := range flag.Args() {
 			file, err := os.Open(arg)
 			if err != nil {
-				logger := log.New(os.Stderr, "", 0)
-				logger.Println(err)
+				fmt.Fprintln(os.Stderr, err)
+				anyErrs = true
+				continue
 			}
+			defer file.Close()
 			rdr := bufio.NewReader(file)
-			s := scanFile(rdr)
-			s.Report(arg)
-                        totals.Accum(&s)
+			s := scan(rdr)
+			s.Report(arg, &opts)
+			totals.Add(s)
 		}
-                if files > 1 {
-                   totals.Report("total")
-                }
+		if totals.Added > 1 {
+			totals.Report("total", &opts)
+		}
+		if anyErrs {
+			os.Exit(1)
+		}
 	}
-
 }

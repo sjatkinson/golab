@@ -43,7 +43,7 @@ func printBytes(r *bufio.Reader, bytes int) {
 
 func main() {
 	flag.Parse()
-	if flag.NArg() > 1 {
+	if flag.NFlag() > 1 {
 		fmt.Println("Can not combine line and byte counts")
 		os.Exit(1)
 	}

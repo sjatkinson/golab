@@ -1,5 +1,4 @@
 // head displays the first lines of a file
-// TODO: work with multiple files
 package main
 
 import (
@@ -16,6 +15,9 @@ func init() {
 	flag.IntVar(&lines, "n", 10, "number of lines to print")
 	flag.IntVar(&bytes, "c", 0, "number of bytes to print")
 }
+
+// HeadFunction defines a function type we can pass around for output
+type HeadFunction func(*bufio.Reader, int)
 
 // printLines displays the first specified lines in a file
 func printLines(r *bufio.Reader, lines int) {
@@ -41,22 +43,49 @@ func printBytes(r *bufio.Reader, bytes int) {
 	}
 }
 
-func main() {
-	flag.Parse()
-	if flag.NFlag() > 1 {
-		fmt.Println("Can not combine line and byte counts")
-		os.Exit(1)
-	}
-	file, err := os.Open(flag.Arg(0))
+// headFile outputs a file to stdout using HeadFunction and count
+func headFile(fname string, count int, printHead HeadFunction) {
+	file, err := os.Open(fname)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(2)
 	}
 	defer file.Close()
 	r := bufio.NewReader(file)
+	printHead(r, count)
+}
+
+// getOutputFuncton determines if we are outputting bytes or lines, returns a function and count
+func getOutputFunction(bytes, lines int) (outputFunc HeadFunction, count int) {
 	if bytes > 0 {
-		printBytes(r, bytes)
+		outputFunc = printBytes
+		count = bytes
 	} else {
-		printLines(r, lines)
+		outputFunc = printLines
+		count = lines
+	}
+	return
+}
+
+func main() {
+	flag.Parse()
+	if flag.NFlag() > 1 {
+		fmt.Println("Can not combine line and byte counts")
+		os.Exit(1)
+	}
+	printHead, count := getOutputFunction(bytes, lines)
+	if flag.NArg() == 0 {
+		rdr := bufio.NewReader(os.Stdin)
+		printHead(rdr, count)
+	} else {
+		if flag.NArg() > 1 {
+			for _, arg := range flag.Args() {
+				fmt.Printf("==> %v <==\n", arg)
+				headFile(arg, count, printHead)
+				fmt.Println("")
+			}
+		} else {
+			headFile(flag.Arg(0), count, printHead)
+		}
 	}
 }
